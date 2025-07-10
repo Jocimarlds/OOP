@@ -1,46 +1,44 @@
-// Clase para manejar los LEDs
-class LedManager {
+class LedBinario {
   private:
-    int ledPins[4];  // Pines conectados a los LEDs
+    // Orden de pines: [MSB, ..., LSB] → pin 2 (bit 3) hasta pin 5 (bit 0)
+    const byte pines[4] = {2, 3, 4, 5};
 
   public:
-    // Constructor que recibe los pines
-    LedManager(int pin0, int pin1, int pin2, int pin3) {
-      ledPins[0] = pin0;
-      ledPins[1] = pin1;
-      ledPins[2] = pin2;
-      ledPins[3] = pin3;
+    void iniciar() {
       for (int i = 0; i < 4; i++) {
-        pinMode(ledPins[i], OUTPUT);
+        pinMode(pines[i], OUTPUT);
+        digitalWrite(pines[i], LOW);
       }
+      Serial.begin(9600);
     }
 
-    // Método para mostrar número binario en LEDs
-    void displayBinary(byte value) {
+    void mostrar(byte valor) {
       for (int i = 0; i < 4; i++) {
-        digitalWrite(ledPins[i], (value >> i) & 0x01);
+        // Bit 0 controla pin 5, bit 1 pin 4, etc.
+        digitalWrite(pines[3 - i], (valor >> i) & 1);
       }
     }
 };
 
-LedManager leds(2, 3, 4, 5);  // Instancia de la clase con los pines
+LedBinario leds;
 
 void setup() {
-  Serial.begin(9600);
+  leds.iniciar();
 }
 
 void loop() {
   if (Serial.available()) {
-    char input = Serial.read();         // Leer carácter
-    byte value = hexCharToByte(input);  // Convertir a valor binario
-    leds.displayBinary(value);          // Mostrar en LEDs
-  }
-}
+    char recibido = Serial.read();
+    byte valor = 0;
 
-// Convierte carácter '0' - 'F' a número 0 - 15
-byte hexCharToByte(char c) {
-  if (c >= '0' && c <= '9') return c - '0';
-  if (c >= 'A' && c <= 'F') return c - 'A' + 10;
-  if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-  return 0;
+    if (recibido >= '0' && recibido <= '9') {
+      valor = recibido - '0';
+    } else if (recibido >= 'A' && recibido <= 'F') {
+      valor = recibido - 'A' + 10;
+    } else if (recibido >= 'a' && recibido <= 'f') {
+      valor = recibido - 'a' + 10;
+    }
+
+    leds.mostrar(valor);
+  }
 }
