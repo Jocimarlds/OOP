@@ -1,40 +1,70 @@
 import serial
 import time
 
-# Clase para manejar la comunicación con Arduino
-class ArduinoController:
-    def __init__(self, port, baudrate=9600):
-        self.serial_port = serial.Serial(port, baudrate, timeout=1)
-        time.sleep(2)  # Espera a que Arduino se reinicie
+class ComunicadorSerial:
+    """
+    Clase encargada de manejar la comunicación serial con Arduino.
+    Aplica encapsulamiento y abstracción.
+    """
+    def __init__(self, puerto: str, baudios: int = 9600):
+        self.puerto = puerto
+        self.baudios = baudios
+        try:
+            self.serial = serial.Serial(self.puerto, self.baudios, timeout=1)
+            time.sleep(2)  # Esperar a que Arduino se reinicie al abrir puerto
+            print(f"[✓] Conectado a {self.puerto} exitosamente.")
+        except serial.SerialException as e:
+            print(f"[X] Error al conectar con {self.puerto}: {e}")
+            self.serial = None
 
-    def send_hex(self, hex_char):
-        if hex_char.upper() in '0123456789ABCDEF':
-            self.serial_port.write(hex_char.upper().encode())
-            print(f"[✔] Enviado: {hex_char.upper()}")
+    def enviar_hex(self, dato: str):
+        """
+        Envía un carácter hexadecimal (0-F) al Arduino
+        """
+        if self.serial and self.serial.is_open:
+            dato = dato.upper()
+            if len(dato) == 1 and dato in "0123456789ABCDEF":
+                self.serial.write(dato.encode())
+                print(f"[→] Enviado: {dato}")
+            else:
+                print("[!] Entrada inválida. Ingresa un valor hexadecimal (0-F).")
         else:
-            print("[✘] Entrada no válida. Usa caracteres hexadecimales (0-F).")
+            print("[X] Puerto no disponible.")
 
-    def close(self):
-        self.serial_port.close()
+    def cerrar(self):
+        """
+        Cierra el puerto serial correctamente
+        """
+        if self.serial and self.serial.is_open:
+            self.serial.close()
+            print(f"[✓] Puerto {self.puerto} cerrado.")
 
-# Clase principal de la aplicación
-class HexLedApp:
-    def __init__(self, controller):
-        self.controller = controller
 
-    def run(self):
-        print("Presiona una tecla hexadecimal (0-F), 'q' para salir.")
+class InterfazUsuario:
+    """
+    Clase que representa la interfaz del usuario (separación de responsabilidades).
+    """
+    def __init__(self, comunicador: ComunicadorSerial):
+        self.comunicador = comunicador
+
+    def iniciar(self):
+        """
+        Bucle principal de interacción con el usuario
+        """
+        print("╭─────────────────────────────╮")
+        print("│ Control de LEDs en Arduino │")
+        print("╰─────────────────────────────╯")
+        print("Ingresa un valor hexadecimal (0–F) o 'Q' para salir.")
         while True:
-            key = input(">> ").strip()
-            if key.lower() == 'q':
+            entrada = input("Hex > ").strip().upper()
+            if entrada == 'Q':
+                print("Saliendo del programa...")
                 break
-            self.controller.send_hex(key)
+            self.comunicador.enviar_hex(entrada)
+        self.comunicador.cerrar()
 
-        self.controller.close()
 
-# Uso del programa
 if __name__ == "__main__":
-    port = "COM3"  # Cambiar por el puerto de tu Arduino (ej. "/dev/ttyUSB0" en Linux)
-    arduino = ArduinoController(port)
-    app = HexLedApp(arduino)
-    app.run()
+    comunicador = ComunicadorSerial(puerto="COM60")
+    interfaz = InterfazUsuario(comunicador)
+    interfaz.iniciar()
